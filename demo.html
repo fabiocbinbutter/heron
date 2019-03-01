@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Demo</title>
+	<script type="module" src="demo.js"></script>
+	<style>
+		body {background-color:#fff}
+		.wrap-editor{margin: 1em 0; border:1px solid #339;}
+		.editor { background-color: #fafafa; left:4em; right:4em; height:24em; flex-grow: 2;}{margin: 1em 0;}
+		.row {display:flex; flex-direction: row; justify-content: space-around; align-items: center;}
+		.row.top {align-items: flex-start;}
+		.datum {border:1px solid #ddc; border-radius: 2px; margin:2px; background-color: #ffe; text-overflow: clip;}
+		.text-out {white-space: pre; font-family:monospace; background-color: #333; color:#ddd}
+
+		.context-bar {flex-grow: 1; min-width:200px; padding:0 40px; background-color: #ddd; overflow-y: scroll; height:24em;} /*Want it to be 100% of wrap=editor...*/
+		.context-bar .header {
+			font-size: 1.8em;		margin: 0.5em 0 0.25em 0;
+			border: 0px solid #333;	border-width: 0 0 1px 0;
+			}
+		.context-bar .subheader {
+			font-size: 1.4em;		margin: 0.75em 0 0.25em 0;
+			border: 0px solid #aaa;	border-width: 0 0 1px 0;
+			}
+		.context-bar .description {color:#222}
+
+
+		.context-action {background-color: #fff; margin:5px 0; border:0.5px #888 solid; border-radius:6px;cursor: pointer;}
+		.context-action>.icon {
+			font-size: 1.5em; 	font-weight: bold;	flex-grow: 0;
+			border: 0px solid white;	border-radius: 50%;
+			background-color: darkgreen; color: white;
+			text-align: center;	padding: 0.15em 0.5em; margin: 5px 10px;
+			}
+		.context-action .body {
+		    flex-grow: 1;
+		    border: none;
+			}
+		.context-action .title { color:black;}
+		.context-action .reminder{color:#666;}
+	</style>
+</head>
+<body style="">
+</body>
+</html>
