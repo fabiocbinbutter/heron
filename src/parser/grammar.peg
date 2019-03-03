@@ -107,7 +107,7 @@ noteElement
     / objectWord
     / danglingBracket
 
-string = "\"...\"" {return [T.TEXT, "STR"]}
+string = "'...'" {return [T.TEXT, "STR"]}
 
 object =
     "["
@@ -124,7 +124,7 @@ objectId =
     rest:("/" objectIdPart)*
     {return new Id(head + unpair(rest).join(''))}
 
-objectIdPart = type:typeString id:(":" idString)? {
+objectIdPart = type:typeString id:("=" idString)? {
     return type + (id ? id[0]+id[1] : '')
     }
 
@@ -135,7 +135,7 @@ objectElement
 
 attribute =
 	ref:typeString
-    ":"
+    "="
     val:(object / string / text)
     {
 		return new Attr(ref,val)
@@ -146,11 +146,11 @@ text = ch:(escapedCharacter / textCharacter / inlineBreak)+
  // ^ handle case where text ends with "\n EOF"
 
 objectWord = ch:wordCharacter+ {return new Txt(ch)}
-typeString = ch:[^[\n\]:/ \t]+ {return new Txt(ch)}
-idString = ch:("*"? [0-9]*) {return new Txt(ch)}
+typeString = ch:[^[\n\]=/ \t]+ {return new Txt(ch)}
+idString = ch:("+"? [0-9]*) {return new Txt(ch)}
 
 inlineBreak = ch:" "+ {return new Txt(ch)}
-singleBreak = ch:([\n\t ][ \t]*) {return new Txt(ch)}
+singleBreak = ch:([\n\t][ \t]*) {return new Txt(ch)}
 multiBreak = ch:("\n" "\n"+) {return new Txt(ch)}
 
 textCharacter = [^[\n\]]
@@ -162,7 +162,7 @@ escapedCharacter = "\\" c:
 	/ unicodeEscape
 	) {return ch}
 
-selfEscape = [/[\]:\"]
+selfEscape = [/[\]=\"]
 backslashEscape = "|" {return "\\"}
 newlineEscape = "n" {return "\n"}
 unicodeEscape = "u" ch:([0-9a-fA-F]{0,6}) ";" {return String.fromCodePoint(parseInt(ch,16));}

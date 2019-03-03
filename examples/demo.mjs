@@ -1,12 +1,10 @@
 //import * as pere from 'https://cdn.jsdelivr.net/gh/sgentle/pere@master/pere.js'
-//window.memory = new Textmarker("p")
+
 import * as hyperapp from 'https://cdn.jsdelivr.net/gh/jorgebucaran/hyperapp@1.2.9/src/index.min.js'//'./node_modules/hyperapp/src/index.js'
-import getContext from './lib/dom-getContext.mjs'
-import parse from './dist/parser.mjs'
-//import parseText from './lib/dom-parseText.mjs'
+import heron from '../index.mjs'
 
 let maxCaretOffset = 6
-let initHtml = `Some random intro text<br />Lorem ipsum dolor set<br /><br />A partially completed [opp that is not finished.<br/ ><br/>And one [opp:* That is new]`
+let initHtml = `Some random intro text<br />Lorem ipsum dolor set<br /><br />A partially completed [opp that is not finished.<br/ ><br/>And one [fr=+ That is new]`
 let act,editor
 let model = {
 	stringParts: [],
@@ -136,14 +134,14 @@ let actions = {
 		console.warn("TODO - act.insert",type)
 		},
 	updateContext: () => state => {
-		let ctx = getContext(editor, document.getSelection())
-		let contents = parse(ctx.text)
-		let data = contents.data
+		let content = heron.dom.getContent(editor, {selection: document.getSelection()})
+		let parsed = heron.parse(content.text)
+		let data = parsed.data
 		let route, target
-		if(ctx.isInObject){
+		if(content.isInObject){
 			let [k,obj] = Object.entries(data)[0]
 			if(obj.id){
-				let [type,id] = obj.id.split("/").slice(-1)[0].split(":")
+				let [type,id] = obj.id.split("/").slice(-1)[0].split("=")
 				if(id){ //There is already an ID, show some info about it
 					route = "inspect"
 					target = id
@@ -161,10 +159,10 @@ let actions = {
 		else { //Cursor outside of an object, show common types to insert
 			route = "default"
 			}
-		return {context:{text:ctx.text,data,route,target}}
+		return {context:{text:content.text,data,route,target}}
 		},
 	export: () => state => {
-		let ctx = getContext(editor, document.getSelection())
+		let content = heron.dom.getContent(editor)
 		//return {stringParts,data}
 		}
 	}

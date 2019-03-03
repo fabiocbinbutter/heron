@@ -1,4 +1,4 @@
-import isDataNode from './dom-isDataNode.mjs'
+import isDataNode from './isDataNode.mjs'
 
 const directions = {
 	forward:  {isForward:1, incr:+1, child:"firstChild", sibling:"nextSibling",deeperBracket:"[",shallowerBracket:"]"},
@@ -6,11 +6,11 @@ const directions = {
 	}
 const blockTags={"DIV":true,"P":true}
 
-export default function getContext(container, selection, depth){
+export default function getContent(container, {selection, depth} = {}){
 	let node = selection ? selection.focusNode : container
 	let offset = selection && selection.focusOffset
-	let contextStart = getContextBound(container, node, offset, 'backward', depth)
-	let contextEnd = getContextBound(container, node, offset, 'forward', depth)
+	let contextStart = getContentBound(container, node, offset, 'backward', depth)
+	let contextEnd = getContentBound(container, node, offset, 'forward', depth)
 	let text = contextStart.stringParts.reverse().concat(contextEnd.stringParts).join('')
 	return {
 		text,
@@ -33,7 +33,7 @@ function ancestorAmong(rootNode, candidateNodes){
 function min(a,b){return a<b?a:b}
 function max(a,b){return a>b?a:b}
 
-function getContextBound(container, initNode, offset, dir, depth = 1){
+function getContentBound(container, initNode, offset, dir, depth = 1){
 	let lastChar, lastNode, stringParts =[]
 	let direction = directions[dir]
 	let node = initNode
