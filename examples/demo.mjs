@@ -37,6 +37,13 @@ let model = {
 			attributes:{
 				status:{id:"status",label:"Status"}
 				}
+			},
+		opp:{id:"opp", label:"Opportunity", description:"A business opportunity",
+			attributes:{
+				prob:{id:"prob",label:"Probability"},
+				amt:{id:"amt",label:"Amount"},
+				cd:{id:"cd",label:"Likely Close Date", datatype:"date"},
+				}
 			}
 		}
 	}
@@ -65,7 +72,7 @@ function view(){
 					])
 				]),
 			div({class:"row"},[
-				button({id:"export",onclick:a.fullDom2Txt},"Export")
+				button({id:"export",onclick:a.export},"Export")
 				]),
 			div({class:"text-out"},s.context.text),
 			div({class:"text-out"},JSON.stringify(s.context.data,null,2))
@@ -162,8 +169,11 @@ let actions = {
 		return {context:{text:content.text,data,route,target}}
 		},
 	export: () => state => {
+		console.log("!")
 		let content = heron.dom.getContent(editor)
-		//return {stringParts,data}
+		let parsed = heron.parse(content.text)
+		let data = parsed.data
+		return {context:{text:content.text,data}}
 		}
 	}
 document.addEventListener("DOMContentLoaded", ()=> {

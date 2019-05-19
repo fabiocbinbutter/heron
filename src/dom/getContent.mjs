@@ -1,4 +1,4 @@
-import isDataNode from './isDataNode.mjs'
+fabioimport isDataNode from './isDataNode.mjs'
 
 const directions = {
 	forward:  {isForward:1, incr:+1, child:"firstChild", sibling:"nextSibling",deeperBracket:"[",shallowerBracket:"]"},
@@ -7,6 +7,18 @@ const directions = {
 const blockTags={"DIV":true,"P":true}
 
 export default function getContent(container, {selection, depth} = {}){
+	let offset,text, isInObject
+	if(selection){
+		let contextStart = getContentBound(container, selection.focusNode, selection.offset, 'backward', depth)
+		let contextEnd = getContentBound(container, selection.focusNode, selection.offset, 'forward', depth)
+		text = contextStart.stringParts.reverse().join('')
+		offset = text.length
+		text = text.concat(contextEnd.stringParts.join(''))
+		isInObject = text[0]==='[' //TODO: This logic will change once contextStart can include a leading attribute type
+		}
+	else {
+
+		}
 	let node = selection ? selection.focusNode : container
 	let offset = selection && selection.focusOffset
 	let contextStart = getContentBound(container, node, offset, 'backward', depth)

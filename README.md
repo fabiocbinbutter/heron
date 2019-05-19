@@ -4,36 +4,63 @@ HERON, short for Human Editable Relational Object Notation, is a text format tha
 is designed to enable one or more users to maintain a set of data via text embedded
 into otherwise unstructured text.
 
+### Contents
+
+ - [Guiding Principles](#guiding-principles)
+ - [HERON by Example](#heron-by-example)
+   - [JSON Interop](#json-interop)
+ - [Interactive Demo](#interactive-demo)
+ - [Specification](#specification)
+
+
 ### Guiding principles
 
  - **No synchronous errors** - Data capture should never be at odds with users' natural note-taking, so any text is accepted by the HERON parser
- - **Reduced keystrokes** -
- - **Relational model** - Every object gets a primary key, so updates are well-defined, and data can be queried via SQL
- - **Context-free parsing** -
- - **Optional interoperability with JSON (TODO)** -
+ - **Reduced keystrokes** - Gestures are short and control characters are chosen for quick use with US QWERTY keyboards
+ - **Relational model** - Every object gets a primary key, so updates are well-defined, and data can be queried via SQL or graph abstractions
+ - **Context-free parsing** -If you start reading a HERON note in the middle, you only have to track back to the most recent [ character to know what syntax you're in
+ - **Optional interoperability with JSON (TODO)** - A format is exposed to allow existing JSON libraries to 
 
 ### HERON by Example
 
-Our first Heron note
+##### Our First HERON Note
 ```
 In HERON, data is embedded into otherwise freeform text. For example this is
 a valid HERON note with no data. In fact, no syntax errors exist in HERON - every
 text string is a valid HERON note
 ```
 
-Once more, with data
+##### Embedding Objects
+Within notes, embedded objects are initiated with square brackets
 ```
-Within notes, embedded objects are initiated with square brackets, like so: []
+Here's an (empty) object - []
 
-Also, objects are terminated by EOF, or two consecutive line breaks, so this is an object too: [
+Objects are also terminated by EOF, or two consecutive line breaks.
+So, this line has an empty object too [
 
 Should a user need a literal square bracket character, they can escape it \[
-
-Let's take a look at a more realistic object [format:1 name:Heron audience:Humans]
-
 ```
 
-# JSON Interop
+##### Object Contents
+
+There are four types of things that can be found inside of an object: An identifier, and any number of attributes, objects, and runs of free-form text. Let's see an example that uses all of these. (Line indentation has been added for readability but is not significant)
+
+```
+This README file describes [format name=Heron
+	It's a super awesome text/data format
+	created=2019
+	author=[person name=Fabio Beltramini]
+	[audience Humans] [audience SQL]
+	]
+```
+
+##### The Role of Schema
+
+The top-level object has a type
+
+##### Implicit IDs
+
+##### JSON Interop
 
 *This functionality is not yet implemented in the reference parser. It still needs to be fleshed out*
 

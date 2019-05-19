@@ -1,3 +1,4 @@
+export default `
 {	function peek(x){console.log(x);return x}
     function Txt(txt){
     	this.txt = txt.join ? txt.join('') : txt
@@ -73,7 +74,7 @@
                 }
             if(el instanceof Attr && el.val instanceof Obj){
             	obj = el.val
-                path = el.id.replace(/^\?|^$/,el.ref+"?")
+                path = el.id.replace(/^\\?|^$/,el.ref+"?")
             	}
             if(obj){
                 rels[path] = path
@@ -95,10 +96,10 @@
     	}
 }
 
-note = e:noteElement* {return peek(new Obj('',e))}
+note = e:noteElement* {return new Obj('',e)}
 
 noteElement
-	= string
+	= quoted
     / object
     / attribute
     / multiBreak
@@ -107,7 +108,7 @@ noteElement
     / objectWord
     / danglingBracket
 
-string = "'...'" {return [T.TEXT, "STR"]}
+quoted = "'...'" {return [T.TEXT, "STR"]}
 
 object =
     "["
@@ -136,35 +137,35 @@ objectElement
 attribute =
 	ref:typeString
     "="
-    val:(object / string / text)
+    val:(object / quoted / text)
     {
 		return new Attr(ref,val)
 		}
 
 text = ch:(escapedCharacter / textCharacter / inlineBreak)+
 	{return new Txt(ch)}
- // ^ handle case where text ends with "\n EOF"
+ // ^ handle case where text ends with "\\n EOF"
 
 objectWord = ch:wordCharacter+ {return new Txt(ch)}
-typeString = ch:[^[\n\]=/ \t]+ {return new Txt(ch)}
+typeString = ch:[^[\\n\\]=/ \\t]+ {return new Txt(ch)}
 idString = ch:("+"? [0-9]*) {return new Txt(ch)}
 
 inlineBreak = ch:" "+ {return new Txt(ch)}
-singleBreak = ch:([\n\t][ \t]*) {return new Txt(ch)}
-multiBreak = ch:("\n" "\n"+) {return new Txt(ch)}
+singleBreak = ch:([\\n\\t][ \\t]*) {return new Txt(ch)}
+multiBreak = ch:("\\n" "\\n"+) {return new Txt(ch)}
 
-textCharacter = [^[\n\]]
-wordCharacter = [^[\n\] \t]
-escapedCharacter = "\\" c:
+textCharacter = [^[\\n\\]]
+wordCharacter = [^[\\n\\] \\t]
+escapedCharacter = "\\\\" c:
 	( selfEscape
 	/ backslashEscape
 	/ newlineEscape
 	/ unicodeEscape
 	) {return ch}
 
-selfEscape = [/[\]=\"]
-backslashEscape = "|" {return "\\"}
-newlineEscape = "n" {return "\n"}
+selfEscape = [/[\\]=\\"]
+backslashEscape = "|" {return "\\\\"}
+newlineEscape = "n" {return "\\n"}
 unicodeEscape = "u" ch:([0-9a-fA-F]{0,6}) ";" {return String.fromCodePoint(parseInt(ch,16));}
 
 danglingBracket = "]" {return new Txt("]")}
@@ -175,7 +176,8 @@ jsonCompatibilityObject
 	= "[{...}]"
 
 jsonValue
-	= string
+	= quoted
 	/ jsonObject
 
 */
+`
