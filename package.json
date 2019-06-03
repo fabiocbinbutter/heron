@@ -7,12 +7,15 @@
     "lib": "lib"
   },
   "dependencies": {
-    "hyperapp": "^1.2.9"
+    "chokidar": "^3.0.0",
+    "es6-promisify": "^6.0.1",
+    "hyperapp": "^1.2.9",
+    "pegjs": "^0.10.0"
   },
   "devDependencies": {},
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-	"build-parser": "node node_modules/pegjs/bin/peg.js --format es -o dist/parser.mjs src/parser/grammar.peg"
+    "build-parser": "node node_modules/pegjs/bin/peg.js --format es -o dist/parser.mjs src/parser/grammar.peg"
   },
   "repository": {
     "type": "git",

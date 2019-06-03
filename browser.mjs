@@ -1,5 +1,5 @@
-import dom from './src/dom.mjs'
-import parse from './src/parse.mjs'
+import dom from './src/dom/index.mjs'
+import parse from './src/parser/index.mjs'
 
 export {dom, parse}
 

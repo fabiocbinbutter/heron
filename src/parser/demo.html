@@ -1,0 +1,45 @@
+<!doctype html>
+<!-- Run from a webserver at the project root -->
+<html>
+<head>
+	<title>Demo</title>
+	<link rel="icon" href="about:blank" />
+	<script src="https://github.com/pegjs/pegjs/releases/download/v0.10.0/peg-0.10.0.min.js"></script>
+	<!-- This is dumb, there has to be a real way to do this without build scripts... -->
+	<script>exports=undefined; module={}; require = ()=>{}</script>
+	<script src="./grammar.js"></script>
+	<script>grammar=exports||module.exports; exports=undefined; module={}</script>
+	<script>
+		const parser = peg.generate(grammar,{})
+		document.addEventListener("DOMContentLoaded", ()=> {
+			console.log("DOM load")
+			document.getElementById("go").addEventListener("click", goParse)
+			goParse()
+			return
+
+			function goParse(){
+				const parsed = parser.parse(document.getElementById("in").value)
+				console.log("parse")
+				document.getElementById("out").value = parsed
+				}
+			})
+	</script>
+	<style>
+		body{position:relative;margin:20px}
+		textarea {position:relative;width:100%;}
+		button{position:relative; width:12em;margin-left: auto;margin-right: auto;}
+	</style>
+</head>
+<body>
+<textarea id="in" style="height:10em">
+Lorem ipsum
+
+[quote by=Abraham Lincoln  Four score and seven years ago!]
+[quote Thus
+	by=The Raven
+	and=Nothing more
+	]
+</textarea>
+<button id="go">Parse</button>
+<textarea id="out" style="height:40em"></textarea>
+</html>
