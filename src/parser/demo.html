@@ -13,14 +13,41 @@
 		const parser = peg.generate(grammar,{})
 		document.addEventListener("DOMContentLoaded", ()=> {
 			console.log("DOM load")
-			document.getElementById("go").addEventListener("click", goParse)
-			goParse()
+			let [selector,input,output,go] =
+				"selector,input,output,go".split(',').map(id=>document.getElementById(id))
+			go.addEventListener("click", goParse)
+			document.addEventListener("keypress",evt=>selectExample('example-'+evt.key))
+			selector.addEventListener("change",evt=>selectExample(evt.target.value))
+
+			selectExample(tryGetStorage('example')||'example-1')
+
+			//goParse()
 			return
 
+			function selectExample(id){
+				id = ''+id
+				let el = document.getElementById(id)
+				if(el && el.type === "text/heron"){
+						selector.value = id
+						input.value = el.innerText || el.textContent
+					}
+				trySetStorage('example',id)
+				goParse()
+				}
+
 			function goParse(){
-				const parsed = parser.parse(document.getElementById("in").value)
+				const parsed = parser.parse(input.value)
 				console.log("parse")
-				document.getElementById("out").value = parsed
+				output.value = parsed
+				parsed.log()
+				}
+			function tryGetStorage(key,dft){
+				try{return JSON.parse(localStorage.getItem(key))}
+				catch(e){return dft}
+				}
+			function trySetStorage(key,val){
+				try{localStorage.setItem(key,JSON.stringify(val))}
+				catch(e){}
 				}
 			})
 	</script>
@@ -31,7 +58,16 @@
 	</style>
 </head>
 <body>
-<textarea id="in" style="height:10em">
+<select id="selector">
+	<option value="example-1" selected>1. Quotes</option>
+	<option value="example-2">2. Nested Quotes</option>
+</select>
+<textarea id="input" style="height:10em">
+</textarea>
+<button id="go">Parse</button>
+<textarea id="output" style="height:48em"></textarea>
+</body>
+<script type="text/heron" id="example-1">
 Lorem ipsum
 
 [quote by=Abraham Lincoln  Four score and seven years ago!]
@@ -39,7 +75,14 @@ Lorem ipsum
 	by=The Raven
 	and=Nothing more
 	]
-</textarea>
-<button id="go">Parse</button>
-<textarea id="out" style="height:40em"></textarea>
+</script>
+<script type="text/heron" id="example-2">
+Lorem ipsum
+
+[quote by=[person name=Abraham Lincoln]  Four score and seven years ago!]
+[quote Thus
+	by=The Raven
+	and=Nothing more
+	]
+</script>
 </html>

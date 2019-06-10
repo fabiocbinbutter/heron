@@ -1,4 +1,144 @@
 
+exports = module.exports = functionBodies`${grammarScript}
+
+note = e:noteElement* ${f=>{
+	return new Obj(new Id('_note=+'),e)
+	}}
+
+noteElement
+	= quoted
+	/ object
+	/ attribute
+	/ topLevelText
+
+quoted = "\\"...\\"" ${f=>{
+	return new  Txt("TODO")
+	}}
+
+object =
+	"["
+	id:objectId?
+	rest:(_obj_ objectElement)*
+	"]"?
+	${f=>{
+		return new Obj(id, rest.map(r=>r[1]))
+		}}
+
+objectId =
+	head:objectIdPart
+	rest:objectIdRest*
+	${f=>{
+		return new Id([head, ...rest])
+		}}
+
+objectIdRest =
+	"/"
+	part:objectIdPart
+	${f=>{
+		return part
+		}}
+
+objectIdPart =
+	type:typeString
+	id:("=" idNumString)?
+	${f=>{
+		return new IdPart(type + (id||[]).join(''))
+		}}
+
+objectElement
+	= object
+	/ attribute
+	/ objectText
+
+attribute =
+	ref:typeString
+	"="
+	val:(object / quoted / objectText)
+	${f=>{
+		return new Attr(ref,val)
+		}}
+
+topLevelText = ch:(rootCharacter/escapedCharacter)+
+	${f=>{
+		return new Txt(ch)
+		}}
+
+objectText =
+	head:word
+	rest:(_txt_ word)*
+	${f=>{
+		return new Txt(rest.reduce((a,b)=>([...a,...b]),[head]))
+		}}
+
+
+word = ch:(wordCharacter/escapedCharacter)+ ${chJoin}
+
+typeString = //Anything but whitespace,brackets,=, or /
+	ch:[^ \\n\\t[\\]=/]+
+	${chJoin}
+
+idNumString = //Examples: "1" "12" "" "+" "+1"
+	ch:("+"? [0-9]*)
+	${chJoin}
+
+_txt_
+	= singleSpace
+	/ lineContinuations
+	/ nothing
+
+_obj_
+	= multiSpace
+	/ lineContinuations
+	/ singleBreak
+	/ nothing
+
+wordCharacter = [^ \\n\\t\\[\\]] // Anything but whitespace, opening bracket, or closing bracket
+rootCharacter = [^[] //Anything but an opening bracket
+singleSpace = " "
+multiSpace = ch:[ \t]+ ${chJoin}
+singleBreak = ch:(
+	[\\t ]*
+	"\\n"
+	[\\t ]*
+	) ${chJoin}
+lineContinuations = ch:lineContinuation+ ${chJoin}
+lineContinuation =
+	ch1:[\\t ]*
+	"\\n"
+	[ \\t]*
+	"|"
+	ch2:[\\t ]*
+	${f=>{
+		ch1.join('')+'\\n'+ch2.join('')
+		}}
+nothing = ""
+
+escapedCharacter = "\\\\" ch:
+	( selfEscape
+	// backslashEscape
+	/ newlineEscape
+	/ unicodeEscape
+	) {return ch}
+
+selfEscape = [/[\\]=\\"\\\\|]
+//backslashEscape = "\\" {return "\\\\"}
+newlineEscape = "n" {return "\\n"}
+unicodeEscape = "u" ch:([0-9a-fA-F]{0,6}) ";" ${ f=>{return String.fromCodePoint(parseInt(ch,16));}}
+
+danglingBracket = "]" {return "]"}
+
+/*
+
+jsonCompatibilityObject
+	= "[{...}]"
+
+jsonValue
+	= quoted
+	/ jsonObject
+
+*/`
+
+
 function grammarScript(){
 	let gid = 1
 	function Id(spec = ''){
@@ -7,23 +147,22 @@ function grammarScript(){
 			: spec.split ? spec.split('/')
 			: spec
 		this.parts = parts.map(part => part instanceof IdPart ? part : new IdPart(part))
-		console.log('Id',parts)
 		return this
 		}
 	Id.prototype.toString = function(){return this.parts.join('/')}
 	Id.prototype.toAst = function(){return ['Id', this.parts.map(p=>p.toString()).join('/')]}
-	Id.prototype.concat = function(partsOrPart){
+	Id.prototype.concat = function(partOrParts){
 		let parts
 			= partOrParts instanceof Id ? partOrParts.parts
-			: Array.isArray(partsOrPart) ? partsOrPart
-			: [partsOrPart]
-		return new  Id([...this.id, ...parts])
+			: Array.isArray(partOrParts) ? partOrParts
+			: [partOrParts]
+		return new Id([...this.parts, ...parts])
 		}
 
 	function IdPart(str){
-			str = str.includes('=') ? str : str+"=+"+(gid++)
+			str = str.includes('=') ? str : str+"=+";
+			if(str.slice(-2)==="=+"){str+=(gid++)}
 			let [type,num] = str.split('=')
-			console.log('IdPart',type,num)
 			this.type = type
 			this.num = num
 			return this
@@ -60,8 +199,11 @@ function grammarScript(){
 		${"\n"+stringifyAst(this.toAst())}
 
 		## Data Map ##
-		${"\n"+JSON.stringify(this.dataMap(),undefined,2)}
+		${"\n"+JSON.stringify(Object.keys(this.dataMap()),undefined,2)}
 		`.replace(/\n\s+##/g,"\n\n##")
+		}
+	Obj.prototype.log = function Obj_log(){
+		console.log(this.dataMap())
 		}
 	Obj.prototype.text = function stringFromElements(collapseWhitespace){
 		let str=[]
@@ -103,58 +245,55 @@ function grammarScript(){
 		return "TODO"
 
 		}
-	Obj.prototype.dataMap = function obj_dataMap(path){
+	Obj.prototype.dataMap = function Obj_dataMap(path){
 		let elems = this.elems
-		let data = {} //Contains all data at or below the current object, indexed by it's relative path
+		let data = {} //Will contains all data at or below the current object, indexed by it's relative path
+		data[this.id] = this
 		for(let elem of elems){
 			let localElemId, obj
+			if(elem instanceof Attr){
+				if(elem.val instanceof Txt){
+					// empty
+					}
+				if(elem.val instanceof Obj){
+					obj = elem.val
+					localElemId = new Id(this.id+"."+elem.ref).concat(obj.id) //or something...
+					data[localElemId] = obj
+					}
+				}
 			if(elem instanceof Obj){
 				localElemId = elem.id
 				obj = elem
-				}
-			if(elem instanceof Attr && elem.val instanceof Obj){
-				localElemId = elem.id.concat("."+elem.ref) //or something...
-				obj = elem.val
+				data[new Id(this.id).concat(elem.id)] =  {} //Relationship object
+				//data[elem.id] = elem
 				}
 			if(obj){
 				let subdata = obj.dataMap()
 			   	for(let [key,val] of Object.entries(subdata)){
-					let subId = new Id(key)
-					let compoundId = localElemId.concat(subId)
-					data[compoundId] = val
-				}
-			   	// for(let [locl,glbl] of Object.entries(shallow.rels)){
-				// 	shallow.rels[locl] = new Id([...elId,...glbl])
-				// 	}
-				//data[path] = shallow
+					//let subId = new Id(key)
+					//let compoundId = localElemId.concat(subId)
+					//data[compoundId] = val
+					data[key] = val
+					delete subdata[key]
+					}
 				}
 			}
-		//return {rels,data}
 		return data
 		}
 
-
-	function seconds(pairs){
-		/* given [[0,1],[2,3],[4,5]], returns [1,2,3,4,5,6] */
-		return pairs.reduce((arr,[a,b])=>[
-			...arr,
-			...[b]
-			],[])
-		}
 	function stringifyAst(ast){
 		let [type, ...rest] = ast
 		let multiChild = rest.length > 1
 		let wrapStart 	= multiChild ? '[' : ''
 		let wrapEnd 	= multiChild ? ']' : ''
-		let linebreak 	= multiChild ? '\n\t' : ''
+		let linebreak 	= multiChild ? '\n¦ ' : ''
 		return (
-			type.slice(0,1)
-			+" "
+			type.slice(0,2)
 			+ wrapStart
 			+ linebreak
 			+ rest
 				.map(child => Array.isArray(child) ? stringifyAst(child) : JSON.stringify(child))
-				.map(str => str.replace(/\n/g,'\n\t'))
+				.map(str => str.replace(/\n/g,'\n¦ '))
 				.join(linebreak)
 			+ linebreak
 			+ wrapEnd
@@ -163,124 +302,7 @@ function grammarScript(){
 	}
 
 
-function functionBodies(glue, ...fns){ // <-- for better syntax highlighting & compilation errors, let's put stuff that's JS outside of the grammar
+function functionBodies(glue, ...fns){ // <-- for better syntax highlighting & compilation errors, let's put stuff that's JS not in a string literal
 	return glue.map( (str,i) => str + (fns[i]||'').toString().replace(/^[^{]*/,'').replace(/[^}]*$/, '') ).join('')
 	}
 function chJoin(ch){return ch.join('')}
-
-exports = module.exports = functionBodies`${grammarScript}
-
-note = e:noteElement* ${ f=>{return new Obj(new Id(),e)} }
-
-noteElement
-	= quoted
-	/ object
-	/ attribute
-	/ topLevelText
-
-quoted = "\\"...\\"" ${ f=>{ return [T.TEXT, "STR"] } }
-
-object =
-	"["
-	id:objectId?
-	rest:(_obj_ objectElement)*
-	"]"?
-	${ f=>{
-		let elems = seconds(rest)
-		return new Obj(id, elems)
-		}}
-
-objectId =
-	head:objectIdPart
-	rest:objectIdRest*
-	${f=>{
-		return new Id([head, ...rest])
-		}}
-
-objectIdRest =
-	"/" part:objectIdPart
-	${f=>{
-		return part
-		}}
-
-objectIdPart =
-	type:typeString
-	id:("=" idNumString)?
-	${f=>{
-		return new IdPart(type + (id||[]).join(''))
-		}}
-
-objectElement
-	= object
-	/ attribute
-	/ objectText
-
-attribute =
-	ref:typeString
-	"="
-	val:(object / quoted / objectText)
-	${f=>{
-		return new Attr(ref,val)
-		}}
-
-topLevelText = ch:(rootCharacter/escapedCharacter)+
-	${f=>{
-		return new Txt(ch)
-		}}
-
-objectText =
-	head:word
-	rest:(_txt_ word)*
-	${ f=>{return new Txt(rest.reduce((a,b)=>([...a,...b]),[head])) } }
-	// ^ handle case where text ends with "\\n EOF"?
-
-
-word = ch:(wordCharacter/escapedCharacter)+ ${chJoin}
-typeString = ch:[^ \\n\\t[\\]=/]+ ${chJoin} //Anything but whitespace,brackets,=, or /
-idNumString = ch:("+"? [0-9]*) ${chJoin}
-
-_txt_
-	= singleSpace
-	/ lineContinuations
-	/ nothing
-_obj_
-	= multiSpace
-	/ lineContinuations
-	/ singleBreak
-	/ nothing
-
-wordCharacter = [^ \\n\\t\\[\\]] // Anything but whitespace, opening bracket, or closing bracket
-rootCharacter = [^[] //Anything but an opening bracket
-singleSpace = " "
-multiSpace = ch:[ \t]+ ${chJoin}
-singleBreak = ch:( [\\t ]*   "\\n"   [\\t ]*) ${chJoin}
-lineContinuations = ch:lineContinuation+ ${chJoin}
-lineContinuation = ch:(" "? "\\n") [ \\t]+ "|" ${chJoin}
-nothing = ""
-
-escapedCharacter = "\\\\" ch:
-	( selfEscape
-	// backslashEscape
-	/ newlineEscape
-	/ unicodeEscape
-	) {return ch}
-
-selfEscape = [/[\\]=\\"\\\\|]
-//backslashEscape = "\\" {return "\\\\"}
-newlineEscape = "n" {return "\\n"}
-unicodeEscape = "u" ch:([0-9a-fA-F]{0,6}) ";" ${ f=>{return String.fromCodePoint(parseInt(ch,16));}}
-
-danglingBracket = "]" {return "]"}
-
-/*
-
-jsonCompatibilityObject
-	= "[{...}]"
-
-jsonValue
-	= quoted
-	/ jsonObject
-
-*/`
-
-console.log(module.exports)

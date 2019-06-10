@@ -2,10 +2,12 @@
 const peg = require('pegjs')
 const grammar = require('./grammar.js')
 
-const {parse} = peg.generate(grammar)
+const parser = peg.generate(grammar)
 
-const parser ={
-	parse
+
+exports = module.exports = {
+	parse: function ({
+			
+		}={})
+
 	}
-
-exports = module.exports = parser
