@@ -11,6 +11,7 @@
 	<script>grammar=exports||module.exports; exports=undefined; module={}</script>
 	<script>
 		const parser = peg.generate(grammar,{})
+		var data
 		document.addEventListener("DOMContentLoaded", ()=> {
 			console.log("DOM load")
 			let [selector,input,output,go] =
@@ -21,7 +22,6 @@
 
 			selectExample(tryGetStorage('example')||'example-1')
 
-			//goParse()
 			return
 
 			function selectExample(id){
@@ -30,13 +30,14 @@
 				if(el && el.type === "text/heron"){
 						selector.value = id
 						input.value = el.innerText || el.textContent
+						trySetStorage('example',id)
+						goParse()
 					}
-				trySetStorage('example',id)
-				goParse()
 				}
 
 			function goParse(){
 				const parsed = parser.parse(input.value)
+				data = parsed
 				console.log("parse")
 				output.value = parsed
 				parsed.log()

@@ -1,15 +1,17 @@
 
 exports = module.exports = functionBodies`${grammarScript}
 
-note = e:noteElement* ${f=>{
-	return new Obj(new Id('_note=+'),e)
+note = elems:noteElement* ${f=>{
+	return new Obj(new Id('_note=+') ,elems)
 	}}
 
 noteElement
 	= quoted
 	/ object
 	/ attribute
-	/ topLevelText
+	/ word
+	/ _top_
+	/ danglingBracket
 
 quoted = "\\"...\\"" ${f=>{
 	return new  Txt("TODO")
@@ -18,8 +20,8 @@ quoted = "\\"...\\"" ${f=>{
 object =
 	"["
 	id:objectId?
-	rest:(_obj_ objectElement)*
-	"]"?
+	rest:(_obj_? objectElement)*
+	_obj_? "]"?
 	${f=>{
 		return new Obj(id, rest.map(r=>r[1]))
 		}}
@@ -42,7 +44,7 @@ objectIdPart =
 	type:typeString
 	id:("=" idNumString)?
 	${f=>{
-		return new IdPart(type + (id||[]).join(''))
+		return type + (id||[]).join('')
 		}}
 
 objectElement
@@ -59,15 +61,13 @@ attribute =
 		}}
 
 topLevelText = ch:(rootCharacter/escapedCharacter)+
-	${f=>{
-		return new Txt(ch)
-		}}
+	${chJoin}
 
 objectText =
 	head:word
 	rest:(_txt_ word)*
 	${f=>{
-		return new Txt(rest.reduce((a,b)=>([...a,...b]),[head]))
+		return rest.reduce((a,b)=>([...a,...b]),[head]).join('')
 		}}
 
 
@@ -91,6 +91,9 @@ _obj_
 	/ lineContinuations
 	/ singleBreak
 	/ nothing
+
+_top_
+	= ch:[ \\n\\t]+ ${chJoin}
 
 wordCharacter = [^ \\n\\t\\[\\]] // Anything but whitespace, opening bracket, or closing bracket
 rootCharacter = [^[] //Anything but an opening bracket
@@ -142,15 +145,20 @@ jsonValue
 function grammarScript(){
 	let gid = 1
 	function Id(spec = ''){
-		const parts =
+		let parts =
 			spec instanceof Id ? spec.parts
 			: spec.split ? spec.split('/')
 			: spec
+		if(parts[0][0]==='@'){
+			parts[0] = parts[0].slice(1)
+			parts.unshift('@')
+			}
 		this.parts = parts.map(part => part instanceof IdPart ? part : new IdPart(part))
 		return this
 		}
-	Id.prototype.toString = function(){return this.parts.join('/')}
-	Id.prototype.toAst = function(){return ['Id', this.parts.map(p=>p.toString()).join('/')]}
+	Id.prototype.toString = function(){return this.parts.map(p=>p.toString()).join('/')}
+	Id.prototype.toJSON = function(){return JSON.stringify(this.toString())}
+	Id.prototype.toAst = function(){return ['Id', this.toString()]}
 	Id.prototype.concat = function(partOrParts){
 		let parts
 			= partOrParts instanceof Id ? partOrParts.parts
@@ -158,6 +166,7 @@ function grammarScript(){
 			: [partOrParts]
 		return new Id([...this.parts, ...parts])
 		}
+	Id.prototype.isRelative = function(){return this.parts[0]==='@'}
 
 	function IdPart(str){
 			str = str.includes('=') ? str : str+"=+";
@@ -173,33 +182,43 @@ function grammarScript(){
 		this.txt = txt.join ? txt.join('') : txt
 		}
 	Txt.prototype.toString = function(){return JSON.stringify(this.txt)}
+	Txt.prototype.toJSON = function(){return this.txt}
 	Txt.prototype.toAst = function(){return ['Txt', this.txt]}
 
 	function Attr(ref,val){
 		this.ref = ref
-		this.val = val
+		this.val = typeof val =='string' ? new Txt(val) : val
 		}
 	Attr.prototype.toAst = function(){return ['Attr', this.ref, this.val.toAst()]}
 
 	function Obj(id,elems){
 		this.id = new Id(id)
-		this.elems = elems
-
-		//this.txt = stringFromElements(elems)
-		//this.attr = attrsFromElements(id,elems)
-		//let {rels,data} = dataFromElements(id,elems)
-		//this.rels = rels
-		//this.data = data
+		let textFlattenedElems = []
+		let flatten = []
+		for(let el of elems){
+			if(typeof el === 'string'){flatten.push(el)}
+			else{
+				if(flatten.length){
+					textFlattenedElems.push(new Txt(flatten.join('')))
+					flatten = []
+				}
+				textFlattenedElems.push(el)
+				}
+		}
+		if(flatten.length){textFlattenedElems.push(new Txt(flatten.join('')))}
+		this.elems = textFlattenedElems
 		}
 	Obj.prototype.toAst = function obj_toAst(){return ['Obj',this.id.toAst(),...this.elems.map(e=>e.toAst())]}
 	Obj.prototype.toString = function(){
-		return `${this.text(true)}
+		return `
+		## Data Map ##
+		${"\n"+JSON.stringify(
+			this.dataMap(),
+			(k,v)=>(typeof v == "string" ? v.replace(/\s+/g,' ').trim() : v),
+			4)}
 
 		## AST ##
 		${"\n"+stringifyAst(this.toAst())}
-
-		## Data Map ##
-		${"\n"+JSON.stringify(Object.keys(this.dataMap()),undefined,2)}
 		`.replace(/\n\s+##/g,"\n\n##")
 		}
 	Obj.prototype.log = function Obj_log(){
@@ -246,39 +265,40 @@ function grammarScript(){
 
 		}
 	Obj.prototype.dataMap = function Obj_dataMap(path){
-		let elems = this.elems
-		let data = {} //Will contains all data at or below the current object, indexed by it's relative path
-		data[this.id] = this
-		for(let elem of elems){
-			let localElemId, obj
+		let map = {['']:[]} //Will contains all data at or below the current object, indexed by ref
+		let sequence = map['']
+
+		for(let elem of this.elems){
+			let ref, obj
+			if(elem instanceof Txt){
+				sequence.push(elem) //TODO: Convert to a separate interface, like .toRefString()
+			}
 			if(elem instanceof Attr){
 				if(elem.val instanceof Txt){
-					// empty
+					sequence.push(elem.ref+'='+elem.val.toString()) //TODO: Convert to a separate interface, like .toRefString()
 					}
 				if(elem.val instanceof Obj){
 					obj = elem.val
-					localElemId = new Id(this.id+"."+elem.ref).concat(obj.id) //or something...
-					data[localElemId] = obj
+					sequence.push(elem.ref+'=['+obj.id+']') //TODO: Convert to a separate interface, like .toRefString()
 					}
 				}
 			if(elem instanceof Obj){
-				localElemId = elem.id
+				sequence.push('['+elem.id+']')
 				obj = elem
-				data[new Id(this.id).concat(elem.id)] =  {} //Relationship object
+				map[new Id(this.id).concat(elem.id)] =  {} //Relationship object
 				//data[elem.id] = elem
 				}
 			if(obj){
-				let subdata = obj.dataMap()
-			   	for(let [key,val] of Object.entries(subdata)){
-					//let subId = new Id(key)
-					//let compoundId = localElemId.concat(subId)
-					//data[compoundId] = val
-					data[key] = val
-					delete subdata[key]
+				let submap = obj.dataMap()
+				let entries = Object.entries(submap).sort((a,b)=> a[0]>b[0])
+				for(let [key,val] of entries){
+					if(key===''){continue}
+					map[key] = val
 					}
+				map[obj.id] = {'':submap['']}
 				}
 			}
-		return data
+		return map
 		}
 
 	function stringifyAst(ast){
